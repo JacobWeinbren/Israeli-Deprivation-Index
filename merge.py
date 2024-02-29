@@ -3,11 +3,6 @@ import json
 import re
 
 
-# Function to remove all spaces and non-Hebrew characters
-def clean_hebrew(input_string):
-    return re.sub(r"[^\u0590-\u05FF]", "", str(input_string))
-
-
 # Function to load Excel files for authorities and localities
 def load_excel(file_path, code_col_idx, cluster_col_idx, start_row):
     df = pd.read_excel(
@@ -38,10 +33,6 @@ df_localities = load_excel("localities.xlsx", 5, 12, 10)
 
 # Load areas with STAT11
 df_areas = load_areas_excel("areas.xlsx", 0, 2, 6, 9)
-
-# Check if 382 exists in df_localities for SEMEL_YISH
-exists_382 = df_localities["SEMEL_YISH"].astype(str).str.contains("382").any()
-print(f"Does 382 exist in localities for SEMEL_YISH? {exists_382}")
 
 # Load the GeoJSON file
 with open("statistical_areas.geojson", "r") as f:
