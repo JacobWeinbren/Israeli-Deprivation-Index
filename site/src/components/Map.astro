@@ -1,0 +1,70 @@
+---
+
+---
+
+<div id="map" class="w-screen h-screen"></div>
+<div id="geocoder" class="geocoder fixed top-4 left-4 z-10"></div>
+
+<script>
+	import mapboxgl from "mapbox-gl";
+	import { MapboxLayer } from "@deck.gl/mapbox";
+	import { MVTLayer } from "@deck.gl/geo-layers";
+	import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+	import chroma from "chroma-js";
+
+	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
+
+	function generateColorExpression(feature) {
+		return chroma
+			.scale([
+				"#ca0020ff",
+				"#f4a582ff",
+				"#f7f7f7ff",
+				"#92c5deff",
+				"#0571b0ff",
+			])
+			.mode("lch")
+			.domain([0, 10])(feature.properties["CLUSTER"])
+			.rgb();
+	}
+
+	// Function to initialize the map
+	function initMap() {
+		const map = new mapboxgl.Map({
+			container: "map",
+			style: "mapbox://styles/mapbox/dark-v11",
+			center: [35.2345, 31.7767],
+			minZoom: 0,
+			maxZoom: 17,
+			zoom: 9,
+			accessToken: MAPBOX_TOKEN,
+			antialias: true,
+			projection: { name: "mercator" },
+		});
+
+		map.on("load", () => {
+			map.addLayer(
+				new MapboxLayer({
+					id: "emissions-layer",
+					type: MVTLayer,
+					data: "https://map.kafkaesque.blog/data/israel/{z}/{x}/{y}.pbf",
+					getFillColor: generateColorExpression,
+					pickable: true,
+				})
+			);
+		});
+
+		const geocoder = new MapboxGeocoder({
+			accessToken: MAPBOX_TOKEN,
+			mapboxgl: mapboxgl,
+		});
+		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
+
+		map.addControl(new mapboxgl.NavigationControl());
+	}
+
+	// Call the function to initialize the map when the component mounts
+	if (typeof window !== "undefined") {
+		window.onload = initMap;
+	}
+</script>
