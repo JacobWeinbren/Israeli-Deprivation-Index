@@ -1,96 +1,67 @@
 import pandas as pd
-import json
+import ujson
 import re
 
 
-# Function to load Excel files for authorities and localities
-def load_excel(file_path, code_col_idx, cluster_col_idx, start_row):
-    df = pd.read_excel(
-        file_path,
-        usecols=[code_col_idx, cluster_col_idx],
-        skiprows=start_row - 1,
-        header=None,
+def load_excel(file_path, usecols, start_row):
+    df = pd.read_excel(file_path, usecols=usecols, skiprows=start_row - 1, header=None)
+    df.columns = (
+        ["SEMEL_YISH", "CLUSTER"]
+        if len(usecols) == 2
+        else ["SEMEL_YISH", "STAT11", "CLUSTER"]
     )
-    df.columns = ["SEMEL_YISH", "CLUSTER"]
+    df["SEMEL_YISH"] = (
+        pd.to_numeric(df["SEMEL_YISH"], errors="coerce").fillna(0).astype(int)
+    )
+    if "STAT11" in df.columns:
+        df["STAT11"] = (
+            pd.to_numeric(df["STAT11"], errors="coerce").fillna(0).astype(int)
+        )
     return df
 
 
-# Specialized function for loading the areas.xlsx file, including STAT11
-def load_areas_excel(file_path, code_col_idx, stat_col_idx, cluster_col_idx, start_row):
-    df = pd.read_excel(
-        file_path,
-        usecols=[code_col_idx, stat_col_idx, cluster_col_idx],
-        skiprows=start_row - 1,
-        header=None,
-    )
-    df.columns = ["SEMEL_YISH", "STAT11", "CLUSTER"]
-    return df
-
-
-# Load authorities and localities
-df_authorities = load_excel("authorities.xlsx", 1, 6, 11)
-df_localities = load_excel("localities.xlsx", 5, 12, 10)
-
-# Load areas with STAT11
-df_areas = load_areas_excel("areas.xlsx", 0, 2, 6, 9)
+# Load data
+df_authorities = load_excel("authorities.xlsx", [1, 6], 11)
+df_localities = load_excel("localities.xlsx", [5, 12], 10)
+df_areas = load_excel("areas.xlsx", [0, 2, 6], 9)
 
 # Load the GeoJSON file
 with open("statistical_areas.geojson", "r") as f:
-    geojson_data = json.load(f)
+    geojson_data = ujson.load(f)
 
-# Initialize an empty list to hold features with matches
 matched_features = []
 
 for feature in geojson_data["features"]:
-    # Use SEMEL_YISH for matching
-    semel_yish = feature["properties"].get("SEMEL_YISH")
-    stat11 = feature["properties"].get("STAT11")
+    semel_yish = int(feature["properties"].get("SEMEL_YISH", 0))
+    stat11 = int(feature["properties"].get("STAT11", 0))
 
-    # Attempt to find the corresponding row in each DataFrame using SEMEL_YISH and STAT11 for areas
+    # Match with authorities and localities
     match = pd.concat(
         [
-            df_authorities[
-                df_authorities["SEMEL_YISH"]
-                .apply(pd.to_numeric, errors="coerce")
-                .fillna(0)
-                .astype(int)
-                == int(semel_yish)
-            ],
-            df_localities[
-                df_localities["SEMEL_YISH"]
-                .apply(pd.to_numeric, errors="coerce")
-                .fillna(0)
-                .astype(int)
-                == int(semel_yish)
-            ],
-            df_areas[
-                (
-                    df_areas["SEMEL_YISH"]
-                    .apply(pd.to_numeric, errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                    == int(semel_yish)
-                )
-                & (
-                    df_areas["STAT11"]
-                    .apply(pd.to_numeric, errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                    == int(stat11)
-                )
-            ],
+            df_authorities[df_authorities["SEMEL_YISH"] == semel_yish],
+            df_localities[df_localities["SEMEL_YISH"] == semel_yish],
         ],
         ignore_index=True,
     )
 
-    # If there's a match, update the GeoJSON feature properties
+    # Match with areas if STAT11 is provided
+    if stat11:
+        match = pd.concat(
+            [
+                match,
+                df_areas[
+                    (df_areas["SEMEL_YISH"] == semel_yish)
+                    & (df_areas["STAT11"] == stat11)
+                ],
+            ],
+            ignore_index=True,
+        )
+
     if not match.empty:
         feature["properties"]["CLUSTER"] = match.iloc[0]["CLUSTER"]
         matched_features.append(feature)
 
-# Replace the original features with the matched features
 geojson_data["features"] = matched_features
 
-# Write the updated GeoJSON to a new file
 with open("updated_statistical_areas.geojson", "w") as f:
-    json.dump(geojson_data, f, ensure_ascii=False)
+    ujson.dump(geojson_data, f, ensure_ascii=False)
