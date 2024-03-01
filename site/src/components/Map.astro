@@ -1,9 +1,54 @@
 ---
+import chroma from "chroma-js";
 
+function generateGradient() {
+	const domainStart = 0;
+	const domainEnd = 10;
+	const colorScale = chroma
+		.scale([
+			"#ca0020ff",
+			"#f4a582ff",
+			"#f7f7f7ff",
+			"#92c5deff",
+			"#0571b0ff",
+		])
+		.mode("lch")
+		.domain([domainStart, domainEnd]);
+	const numberOfStops = 5;
+	const stepSize = (domainEnd - domainStart) / (numberOfStops - 1);
+	const stops = Array.from({ length: numberOfStops }, (_, i) =>
+		colorScale(domainStart + i * stepSize).hex()
+	);
+	return `linear-gradient(to right, ${stops.join(", ")})`;
+}
+
+const gradientStyle = generateGradient();
 ---
 
 <div id="map" class="w-screen h-screen"></div>
 <div id="geocoder" class="geocoder fixed top-4 left-4 z-10"></div>
+
+<div
+	class="sm:w-[500px] text-sm w-full flex flex-col gap-2 absolute bottom-10 rounded-md z-10 bg-white p-4 left-1/2 transform -translate-x-1/2"
+>
+	<div>
+		<p class="text-md font-semibold" id="title">
+			Socio-Economic Classification
+		</p>
+		<p class="mb-2">Israel (inc West Bank)</p>
+	</div>
+
+	<div>
+		<div class="w-full h-4 rounded" style={`background: ${gradientStyle};`}>
+		</div>
+		<div class="flex justify-between">
+			<span id="min">Least Affluent (1)</span>
+			<span id="max">Most Affluent (10)</span>
+		</div>
+	</div>
+
+	<div id="hover">Hover over a point to see its value.</div>
+</div>
 
 <script>
 	import mapboxgl from "mapbox-gl";
@@ -43,14 +88,44 @@
 		});
 
 		map.on("load", () => {
+			// Find the first label layer in the map style
+			const firstLabelLayerId = map
+				.getStyle()
+				.layers.find((layer) => layer.type === "symbol").id;
+
+			function handleHover({ object }) {
+				const infoDiv = document.querySelector("#hover");
+				if (!object) {
+					return;
+				}
+
+				const clusterValue = parseInt(
+					object.properties["CLUSTER"].toFixed(0)
+				);
+				const ordinal = (n) => {
+					const s = ["th", "st", "nd", "rd"];
+					const v = n % 100;
+					return n + (s[(v - 20) % 10] || s[v] || s[0]);
+				};
+				let hoverText = `This area is in cluster: ${clusterValue} of 10, making it `;
+				hoverText +=
+					clusterValue >= 5
+						? `the ${ordinal(11 - clusterValue)} least deprived.`
+						: `the ${ordinal(clusterValue)} most deprived.`;
+
+				infoDiv.innerHTML = hoverText;
+			}
+
 			map.addLayer(
 				new MapboxLayer({
-					id: "emissions-layer",
+					id: "israel",
 					type: MVTLayer,
 					data: "https://map.kafkaesque.blog/data/israel/{z}/{x}/{y}.pbf",
 					getFillColor: generateColorExpression,
+					onHover: handleHover,
 					pickable: true,
-				})
+				}),
+				firstLabelLayerId
 			);
 		});
 
