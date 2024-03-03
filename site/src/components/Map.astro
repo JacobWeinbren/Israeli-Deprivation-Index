@@ -59,18 +59,19 @@ const gradientStyle = generateGradient();
 
 	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 
+	const preGeneratedColorScale = chroma
+		.scale([
+			"#ca0020ff",
+			"#f4a582ff",
+			"#f7f7f7ff",
+			"#92c5deff",
+			"#0571b0ff",
+		])
+		.mode("lch")
+		.domain([0, 10]);
+
 	function generateColorExpression(feature) {
-		return chroma
-			.scale([
-				"#ca0020ff",
-				"#f4a582ff",
-				"#f7f7f7ff",
-				"#92c5deff",
-				"#0571b0ff",
-			])
-			.mode("lch")
-			.domain([0, 10])(feature.properties["CLUSTER"])
-			.rgb();
+		return preGeneratedColorScale(feature.properties["CLUSTER"]).rgb();
 	}
 
 	// Function to initialize the map
@@ -79,7 +80,7 @@ const gradientStyle = generateGradient();
 			container: "map",
 			style: "mapbox://styles/mapbox/dark-v11",
 			center: [35.2345, 31.7767],
-			minZoom: 0,
+			minZoom: 5,
 			maxZoom: 17,
 			zoom: 9,
 			accessToken: MAPBOX_TOKEN,
@@ -107,7 +108,7 @@ const gradientStyle = generateGradient();
 					const v = n % 100;
 					return n + (s[(v - 20) % 10] || s[v] || s[0]);
 				};
-				let hoverText = `This area is in cluster: ${clusterValue} of 10, making it `;
+				let hoverText = `This area is in cluster ${clusterValue} of 10, making it `;
 				hoverText +=
 					clusterValue >= 5
 						? `the ${ordinal(11 - clusterValue)} least deprived.`
