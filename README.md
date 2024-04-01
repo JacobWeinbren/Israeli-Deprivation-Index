@@ -24,11 +24,3 @@ Generate the map tiles using `tippecanoe` with the following command:
 ```bash
 tippecanoe --output=output/israel.mbtiles --generate-ids --force --no-feature-limit --no-tile-size-limit --detect-shared-borders --coalesce-fraction-as-needed --coalesce-densest-as-needed --coalesce-smallest-as-needed --coalesce --reorder --minimum-zoom=0 --maximum-zoom=17 -x OBJECTID_1 -x OBJECTID -x SEMEL_YISH -x STAT11 -x YISHUV_STA -x SHEM_YISHU -x SHEM_YIS_1 -x Shape_Length -x Shape_Area -x osm_id -x code -x fclass -x name -x type output/merged.geojson
 ```
-
-### Server Deployment
-
-Deploy the map server using Docker with the following command:
-
-```bash
-docker run -it -d -v /root/map-server:/data -p 8080:8080 maptiler/tileserver-gl -c /data/config.json
-```
