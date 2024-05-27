@@ -70,7 +70,7 @@
 				id: "israel-statistical-areas",
 				type: "fill",
 				source: "israel-statistical-areas",
-				"source-layer": "israelstatisticalareas",
+				"source-layer": "maplayer",
 				paint: {
 					"fill-color": "rgba(0, 0, 0, 0)",
 				},
@@ -81,7 +81,7 @@
 					id: "israel",
 					type: "fill",
 					source: "israel",
-					"source-layer": "merged",
+					"source-layer": "maplayer",
 					paint: {
 						"fill-color": [
 							"interpolate",
@@ -103,11 +103,6 @@
 				},
 				firstLabelLayerId
 			);
-
-			const hoverPopup = new mapboxgl.Popup({
-				closeButton: false,
-				closeOnClick: false,
-			});
 
 			map.on("mousemove", (e) => {
 				const features = map.queryRenderedFeatures(e.point, {
