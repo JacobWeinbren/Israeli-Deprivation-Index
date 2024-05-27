@@ -48,7 +48,7 @@
 				.getStyle()
 				.layers.find((layer) => layer.type === "symbol").id;
 
-			map.addSource("israel", {
+			map.addSource("buildings", {
 				type: "vector",
 				tiles: [
 					"https://map.jacobweinbren.workers.dev/israel-dep/{z}/{x}/{y}.mvt",
@@ -60,7 +60,7 @@
 			map.addSource("israel-statistical-areas", {
 				type: "vector",
 				tiles: [
-					"https://map.jacobweinbren.workers.dev/israel-statistical-areas/{z}/{x}/{y}.mvt",
+					"https://map.jacobweinbren.workers.dev/israel-deprivation-areas/{z}/{x}/{y}.mvt",
 				],
 				minzoom: 0,
 				maxzoom: 22,
@@ -80,7 +80,7 @@
 				{
 					id: "israel",
 					type: "fill",
-					source: "israel",
+					source: "buildings",
 					"source-layer": "maplayer",
 					paint: {
 						"fill-color": [
