@@ -55,7 +55,7 @@ tippecanoe --output=output/israel-dep.pmtiles \
 ```
 
 ```bash
-tippecanoe --output=output/israel-statistical-areas.pmtiles \
+tippecanoe --output=output/israel-deprivation-areas.pmtiles \
            --layer="maplayer" \
            --no-feature-limit \
            --no-tile-size-limit \
@@ -80,4 +80,31 @@ tippecanoe --output=output/israel-statistical-areas.pmtiles \
            -x Shape_Length \
            -x Shape_Area \
            output/updated_statistical_areas.geojson
+```
+
+```bash
+tippecanoe --output=output/israel-deprivation-buildings.pmtiles \
+           --layer="maplayer" \
+           --no-feature-limit \
+           --detect-shared-borders \
+           --coalesce-fraction-as-needed \
+           --coalesce-densest-as-needed \
+           --coalesce-smallest-as-needed \
+           --increase-gamma-as-needed \
+           --coalesce \
+           --reorder \
+           --minimum-zoom=0 \
+           --maximum-zoom=17 \
+           --force \
+           --simplification=20 \
+           -x OBJECTID_1 \
+           -x OBJECTID \
+           -x SEMEL_YISH \
+           -x STAT11 \
+           -x YISHUV_STA \
+           -x SHEM_YISHU \
+           -x SHEM_YIS_1 \
+           -x Shape_Length \
+           -x Shape_Area \
+           output/israel-deprivation-buildings.geojson
 ```

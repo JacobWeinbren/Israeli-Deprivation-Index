@@ -20,7 +20,6 @@
 </div>
 
 <script>
-	import { GeoJsonLayer } from "@deck.gl/layers";
 	import { MapboxOverlay } from "@deck.gl/mapbox";
 	import { MVTLayer } from "@deck.gl/geo-layers";
 	import { MaskExtension } from "@deck.gl/extensions";
@@ -87,62 +86,53 @@
 	}
 
 	map.on("load", () => {
-	const firstLabelLayerId = map
-		.getStyle()
-		.layers.find((layer) => layer.type === "symbol").id;
+		const firstLabelLayerId = map
+			.getStyle()
+			.layers.find((layer) => layer.type === "symbol").id;
 
-	function createMaskLayer() {
-		return new MVTLayer({
-			id: "mask-layer",
-			data: "https://map.jacobweinbren.workers.dev/israel-cleaned/{z}/{x}/{y}.mvt",
-			binary: false,
-			operation: "mask",
-			getFillColor: [255, 255, 255],
-			lineWidthMinPixels: 1,
-			beforeId: firstLabelLayerId,
+		function createForegroundLayer() {
+			return new MVTLayer({
+				id: "foreground-layer",
+				data: "https://map.jacobweinbren.workers.dev/israel-deprivation-buildings/{z}/{x}/{y}.mvt",
+				getFillColor: (d) => {
+					const value = d.properties.CLUSTER;
+					return value === null
+						? [0, 0, 0, 0]
+						: [...colorScale(value).rgb(), 255];
+				},
+				getLineColor: (d) => {
+					const value = d.properties.CLUSTER;
+					return value === null
+						? [0, 0, 0, 0]
+						: [...colorScale(value).rgb(), 255];
+				},
+				lineWidthMinPixels: 1,
+				updateTriggers: {
+					getFillColor: [],
+				},
+				beforeId: firstLabelLayerId,
+			});
+		}
+
+		function updateMap() {
+			const backgroundLayer = createBackgroundLayer();
+			const foregroundLayer = createForegroundLayer();
+
+			deckOverlay.setProps({
+				layers: [backgroundLayer, foregroundLayer],
+			});
+		}
+
+		updateMap();
+
+		const geocoder = new MapboxGeocoder({
+			accessToken: MAPBOX_TOKEN,
+			mapboxgl: mapboxgl,
+			marker: false,
 		});
-	}
 
-	function createForegroundLayer() {
-		return new MVTLayer({
-			id: "foreground-layer",
-			data: "https://map.jacobweinbren.workers.dev/israel-deprivation-areas/{z}/{x}/{y}.mvt",
-			getFillColor: (d) => {
-				const value = d.properties.CLUSTER;
-				if (value === null) return [0, 0, 0, 0];
-				const color = colorScale(value).rgb();
-				return [...color, 255];
-			},
-			updateTriggers: {
-				getFillColor: [],
-			},
-			extensions: [new MaskExtension()],
-			maskId: "mask-layer",
-			beforeId: firstLabelLayerId,
-		});
-	}
-
-	function updateMap() {
-		const maskLayer = createMaskLayer();
-		const backgroundLayer = createBackgroundLayer();
-		const foregroundLayer = createForegroundLayer();
-
-		deckOverlay.setProps({
-			layers: [maskLayer, backgroundLayer, foregroundLayer],
-		});
-	}
-
-	updateMap();
-
-	const geocoder = new MapboxGeocoder({
-		accessToken: MAPBOX_TOKEN,
-		mapboxgl: mapboxgl,
-		marker: false,
+		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
 	});
-
-	document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
-});
-
 
 	const gradient = document.getElementById("gradient");
 	const gradientStyle = `linear-gradient(to right, ${colorScale
@@ -150,6 +140,4 @@
 		.map((color) => color)
 		.join(", ")})`;
 	gradient.style.background = gradientStyle;
-
-
 </script>

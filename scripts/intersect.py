@@ -1,5 +1,4 @@
 import geopandas as gpd
-import sys
 
 
 def intersect_geojson(file1, file2, output_file):
@@ -18,7 +17,7 @@ def intersect_geojson(file1, file2, output_file):
 
 if __name__ == "__main__":
     file1 = "output/updated_statistical_areas.geojson"
-    file2 = "data/israel-palestine.geojson"
-    output_file = "output/merged.geojson"
+    file2 = "data/israel_cleaned.geojson"
+    output_file = "output/israel-deprivation-buildings.geojson"
 
     intersect_geojson(file1, file2, output_file)
