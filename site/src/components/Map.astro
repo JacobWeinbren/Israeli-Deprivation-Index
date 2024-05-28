@@ -38,11 +38,12 @@
 		container: "map",
 		style: "mapbox://styles/mapbox/dark-v11",
 		center: [35.2345, 31.7767],
-		minZoom: 9,
+		minZoom: 6,
 		maxZoom: 17,
 		zoom: 9,
 		accessToken: MAPBOX_TOKEN,
 		antialias: true,
+		projection: { name: "mercator" },
 	});
 
 	const deckOverlay = new MapboxOverlay({
@@ -95,14 +96,8 @@
 			data: "https://map.jacobweinbren.workers.dev/israel-cleaned/{z}/{x}/{y}.mvt",
 			binary: false,
 			operation: "mask",
-			renderSubLayers: (props) => {
-				const layer = new GeoJsonLayer({
-					...props,
-					getFillColor: [255, 255, 255],
-					lineWidthMinPixels: 1,
-				});
-				return [layer];
-			},
+			getFillColor: [255, 255, 255],
+			lineWidthMinPixels: 1,
 			beforeId: firstLabelLayerId,
 		});
 	}
