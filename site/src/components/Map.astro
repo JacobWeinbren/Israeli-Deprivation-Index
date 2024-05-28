@@ -20,97 +20,48 @@
 </div>
 
 <script>
-	import mapboxgl from "mapbox-gl";
+	import { GeoJsonLayer } from "@deck.gl/layers";
+	import { MapboxOverlay } from "@deck.gl/mapbox";
+	import { MVTLayer } from "@deck.gl/geo-layers";
+	import { MaskExtension } from "@deck.gl/extensions";
 	import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
+	import mapboxgl from "mapbox-gl";
 	import chroma from "chroma-js";
 
 	const MAPBOX_TOKEN = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 
 	const colorScale = chroma
 		.scale(["#ca0020", "#f4a582", "#f7f7f7", "#92c5de", "#0571b0"])
-		.mode("lch")
 		.domain([0, 10]);
 
-	function initMap() {
-		const map = new mapboxgl.Map({
-			container: "map",
-			style: "mapbox://styles/mapbox/dark-v11",
-			center: [35.2345, 31.7767],
-			minZoom: 5,
-			maxZoom: 17,
-			zoom: 9,
-			accessToken: MAPBOX_TOKEN,
-			antialias: true,
-		});
+	const map = new mapboxgl.Map({
+		container: "map",
+		style: "mapbox://styles/mapbox/dark-v11",
+		center: [35.2345, 31.7767],
+		minZoom: 5,
+		maxZoom: 17,
+		zoom: 9,
+		accessToken: MAPBOX_TOKEN,
+		antialias: true,
+	});
 
-		map.on("load", () => {
-			const firstLabelLayerId = map
-				.getStyle()
-				.layers.find((layer) => layer.type === "symbol").id;
+	const deckOverlay = new MapboxOverlay({
+		interleaved: true,
+		layers: [],
+	});
 
-			map.addSource("buildings", {
-				type: "vector",
-				tiles: [
-					"https://map.jacobweinbren.workers.dev/israel-dep/{z}/{x}/{y}.mvt",
-				],
-				minzoom: 0,
-				maxzoom: 22,
-			});
+	map.addControl(deckOverlay);
 
-			map.addSource("israel-statistical-areas", {
-				type: "vector",
-				tiles: [
-					"https://map.jacobweinbren.workers.dev/israel-deprivation-areas/{z}/{x}/{y}.mvt",
-				],
-				minzoom: 0,
-				maxzoom: 22,
-			});
-
-			map.addLayer({
-				id: "israel-statistical-areas",
-				type: "fill",
-				source: "israel-statistical-areas",
-				"source-layer": "maplayer",
-				paint: {
-					"fill-color": "rgba(0, 0, 0, 0)",
-				},
-			});
-
-			map.addLayer(
-				{
-					id: "israel",
-					type: "fill",
-					source: "buildings",
-					"source-layer": "maplayer",
-					paint: {
-						"fill-color": [
-							"interpolate",
-							["linear"],
-							["get", "CLUSTER"],
-							0,
-							"#ca0020",
-							2.5,
-							"#f4a582",
-							5,
-							"#f7f7f7",
-							7.5,
-							"#92c5de",
-							10,
-							"#0571b0",
-						],
-						"fill-opacity": 0.8,
-					},
-				},
-				firstLabelLayerId
-			);
-
-			map.on("mousemove", (e) => {
-				const features = map.queryRenderedFeatures(e.point, {
-					layers: ["israel", "israel-statistical-areas"],
-				});
-
-				if (features.length > 0) {
-					const feature = features[0];
+	function createBackgroundLayer() {
+		return new MVTLayer({
+			id: "background-layer",
+			data: "https://map.jacobweinbren.workers.dev/israel-deprivation-areas/{z}/{x}/{y}.mvt",
+			getFillColor: () => [0, 0, 0, 0],
+			pickable: true,
+			onHover: (info) => {
+				const infoDiv = document.querySelector("#hover");
+				if (info.object) {
+					const feature = info.object;
 					const clusterValue = feature.properties.CLUSTER.toFixed(0);
 					const ordinal = (n) => {
 						const s = ["th", "st", "nd", "rd"];
@@ -125,24 +76,77 @@
 							: `This area is in cluster ${clusterValue} of 10, making it the ${ordinal(
 									clusterValue
 								)} most deprived.`;
-					document.getElementById("hover").textContent = hoverText;
+					infoDiv.innerHTML = hoverText;
+				} else {
+					infoDiv.innerHTML = "Hover over a point to see its value.";
 				}
-			});
-
-			map.on("mouseleave", () => {
-				document.getElementById("hover").textContent =
-					"Hover over a point to see its value.";
-			});
+			},
 		});
-
-		const geocoder = new MapboxGeocoder({
-			accessToken: MAPBOX_TOKEN,
-			mapboxgl: mapboxgl,
-		});
-		document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
-
-		map.addControl(new mapboxgl.NavigationControl());
 	}
+
+	map.on("load", () => {
+	const firstLabelLayerId = map
+		.getStyle()
+		.layers.find((layer) => layer.type === "symbol").id;
+
+	function createMaskLayer() {
+		return new MVTLayer({
+			id: "mask-layer",
+			data: "https://map.jacobweinbren.workers.dev/israel-cleaned/{z}/{x}/{y}.mvt",
+			binary: false,
+			operation: "mask",
+			renderSubLayers: (props) => {
+				const layer = new GeoJsonLayer({
+					...props,
+					getFillColor: [255, 255, 255],
+					lineWidthMinPixels: 1,
+				});
+				return [layer];
+			},
+			beforeId: firstLabelLayerId,
+		});
+	}
+
+	function createForegroundLayer() {
+		return new MVTLayer({
+			id: "foreground-layer",
+			data: "https://map.jacobweinbren.workers.dev/israel-deprivation-areas/{z}/{x}/{y}.mvt",
+			getFillColor: (d) => {
+				const value = d.properties.CLUSTER;
+				if (value === null) return [0, 0, 0, 0];
+				const color = colorScale(value).rgb();
+				return [...color, 255];
+			},
+			updateTriggers: {
+				getFillColor: [],
+			},
+			extensions: [new MaskExtension()],
+			maskId: "mask-layer",
+			beforeId: firstLabelLayerId,
+		});
+	}
+
+	function updateMap() {
+		const maskLayer = createMaskLayer();
+		const backgroundLayer = createBackgroundLayer();
+		const foregroundLayer = createForegroundLayer();
+
+		deckOverlay.setProps({
+			layers: [maskLayer, backgroundLayer, foregroundLayer],
+		});
+	}
+
+	updateMap();
+
+	const geocoder = new MapboxGeocoder({
+		accessToken: MAPBOX_TOKEN,
+		mapboxgl: mapboxgl,
+		marker: false,
+	});
+
+	document.getElementById("geocoder").appendChild(geocoder.onAdd(map));
+});
+
 
 	const gradient = document.getElementById("gradient");
 	const gradientStyle = `linear-gradient(to right, ${colorScale
@@ -151,7 +155,5 @@
 		.join(", ")})`;
 	gradient.style.background = gradientStyle;
 
-	if (typeof window !== "undefined") {
-		window.onload = initMap;
-	}
+
 </script>
